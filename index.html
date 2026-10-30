@@ -1,0 +1,1012 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Banco de pruebas del dínamo en 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #E3E8EC;
+  --scene: #E3E8EC;
+  --panel: #F5F7F8;
+  --ink: #1D2832;
+  --muted: #586571;
+  --line: #CBD3D9;
+  --chip: #FFFFFF;
+  --chip-ink: #1D2832;
+  --accent: #C97F00;
+  --accent-soft: rgba(217, 139, 6, 0.16);
+  --leader: rgba(29, 40, 50, 0.5);
+  --focus: #1E62C9;
+  --shadow-op: 0.16;
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1B232A;
+    --scene: #1B232A;
+    --panel: #222C34;
+    --ink: #E6EBEE;
+    --muted: #9DAAB4;
+    --line: #35434D;
+    --chip: #27333C;
+    --chip-ink: #E6EBEE;
+    --accent: #F0AE35;
+    --accent-soft: rgba(240, 174, 53, 0.18);
+    --leader: rgba(230, 235, 238, 0.45);
+    --focus: #7FB0FF;
+    --shadow-op: 0.34;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1B232A;
+  --scene: #1B232A;
+  --panel: #222C34;
+  --ink: #E6EBEE;
+  --muted: #9DAAB4;
+  --line: #35434D;
+  --chip: #27333C;
+  --chip-ink: #E6EBEE;
+  --accent: #F0AE35;
+  --accent-soft: rgba(240, 174, 53, 0.18);
+  --leader: rgba(230, 235, 238, 0.45);
+  --focus: #7FB0FF;
+  --shadow-op: 0.34;
+  color-scheme: dark;
+}
+html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 340px; height: 100%; }
+.viewer { position: relative; overflow: hidden; min-height: 0; }
+.viewer canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+.viewer canvas:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.lead { position: absolute; left: 20px; top: 16px; max-width: 440px; pointer-events: none; }
+.lead h1 { margin: 0; font-size: 21px; line-height: 1.2; font-weight: 700; }
+.lead p { margin: 4px 0 0; font-size: 13px; color: var(--muted); max-width: 46ch; }
+.leaders { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.leaders line { stroke: var(--leader); stroke-width: 1; }
+.leaders circle { fill: var(--ink); }
+.leaders .dim { opacity: 0.28; }
+.leaders line.hot { stroke: var(--accent); stroke-width: 1.6; }
+.leaders circle.hot { fill: var(--accent); }
+.labels { position: absolute; inset: 0; pointer-events: none; }
+.chip {
+  position: absolute; left: 0; top: 0;
+  pointer-events: auto;
+  display: inline-flex; align-items: center; gap: 5px;
+  font: inherit; font-size: 12px; line-height: 1.2;
+  padding: 3px 8px 3px 6px;
+  color: var(--chip-ink);
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--g);
+  border-radius: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+  will-change: transform;
+  transition: opacity 0.15s;
+}
+.chip b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.chip.dim { opacity: 0.3; }
+.chip:hover, .chip.hot { border-top-color: var(--accent); border-right-color: var(--accent); border-bottom-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); z-index: 2; opacity: 1; }
+.labels.numbers .chip .nm { display: none; }
+.viewer[data-labels="none"] .labels, .viewer[data-labels="none"] .leaders { display: none; }
+.chip:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.fallback { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; text-align: center; color: var(--muted); }
+
+.panel { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; padding: 18px 20px 28px; }
+.panel section { padding: 16px 0; border-top: 1px solid var(--line); }
+.panel section:first-child { border-top: 0; padding-top: 2px; }
+.panel h2 { margin: 0 0 10px; font-size: 14px; font-weight: 700; }
+.info h3 { margin: 0 0 4px; font-size: 18px; line-height: 1.25; }
+.info .grp { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+.info p { margin: 0 0 12px; max-width: 60ch; }
+.info .empty { color: var(--muted); margin: 0; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--g); flex: none; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn {
+  font: inherit; font-size: 13.5px;
+  padding: 6px 11px; border-radius: 7px;
+  border: 1px solid var(--line); background: transparent; color: var(--ink);
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--muted); }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 13.5px; padding: 6px 12px; border: 0; background: transparent; color: var(--ink); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.check { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 14px; cursor: pointer; }
+.check input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+.speedlabel { display: block; margin: 12px 0 4px; font-size: 14px; }
+.range { width: 100%; accent-color: var(--accent); margin: 0; }
+.readout { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 12px 0 10px; font-size: 14px; }
+.readout dt { color: var(--muted); }
+.readout dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.note { font-size: 12.5px; color: var(--muted); margin: 0; }
+.list h3 { font-size: 13.5px; font-weight: 700; margin: 14px 0 4px; display: flex; align-items: center; gap: 7px; }
+.list h3:first-of-type { margin-top: 0; }
+.list ol { list-style: none; margin: 0; padding: 0; }
+.list li button {
+  width: 100%; text-align: left; font: inherit; font-size: 14px;
+  display: flex; gap: 8px; align-items: baseline;
+  padding: 5px 6px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--ink); cursor: pointer;
+}
+.list li button:hover { background: var(--accent-soft); }
+.list li button[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.list .num { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 1.6em; }
+
+@media (max-width: 820px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: 1fr; grid-template-rows: auto auto; height: auto; }
+  .viewer { height: 64vh; height: 64svh; min-height: 360px; }
+  .panel { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .lead { left: 14px; top: 12px; right: 14px; }
+  .lead h1 { font-size: 18px; }
+  .chip { font-size: 11px; padding: 2px 6px 2px 5px; }
+}
+@media (prefers-reduced-motion: reduce) { .chip { transition: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <main class="viewer" id="viewer" data-labels="names">
+    <div class="lead">
+      <h1>Banco de pruebas del dínamo</h1>
+      <p id="hint">Arrastra para girar, usa la rueda del mouse para acercar y el clic derecho para desplazar. Haz clic en una pieza para ver qué es.</p>
+    </div>
+    <svg class="leaders" id="leaders" aria-hidden="true"></svg>
+    <div class="labels" id="labels"></div>
+    <div class="fallback" id="fallback">Este navegador no puede mostrar el modelo 3D. Prueba con una versión reciente de Chrome, Edge, Firefox o Safari.</div>
+  </main>
+
+  <aside class="panel" aria-label="Controles y piezas">
+    <section class="info" id="info" aria-live="polite"></section>
+
+    <section>
+      <h2>Vistas</h2>
+      <div class="row" id="views">
+        <button class="btn" type="button" data-view="todo" aria-pressed="true">Todo el banco</button>
+        <button class="btn" type="button" data-view="transmision" aria-pressed="false">Transmisión</button>
+        <button class="btn" type="button" data-view="electronica" aria-pressed="false">Electrónica</button>
+        <button class="btn" type="button" data-view="arriba" aria-pressed="false">Desde arriba</button>
+        <button class="btn" type="button" data-view="frente" aria-pressed="false">De frente</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Etiquetas</h2>
+      <div class="seg" id="labelMode" role="group" aria-label="Etiquetas">
+        <button type="button" data-mode="names" aria-pressed="true">Nombres</button>
+        <button type="button" data-mode="numbers" aria-pressed="false">Números</button>
+        <button type="button" data-mode="none" aria-pressed="false">Ocultas</button>
+      </div>
+      <label class="check"><input type="checkbox" id="guardToggle" checked> Mostrar la guarda de acrílico</label>
+    </section>
+
+    <section>
+      <h2>Giro de la transmisión</h2>
+      <button class="btn" type="button" id="spinBtn" aria-pressed="false">Girar</button>
+      <label class="speedlabel" for="speed">Velocidad equivalente de la bicicleta: <b id="speedVal">15 km/h</b></label>
+      <input class="range" type="range" id="speed" min="0" max="30" step="1" value="15">
+      <dl class="readout">
+        <dt>Rodillo del dínamo</dt><dd id="rpmD"></dd>
+        <dt>Motor y rueda</dt><dd id="rpmM"></dd>
+        <dt>Frecuencia del dínamo</dt><dd id="freq"></dd>
+      </dl>
+      <p class="note">Valores del diseño del grupo: N = 2,6, rodillo de 10 mm de radio y p = 4 pares de polos (por verificar). La animación va unas 40 veces más lenta que la realidad.</p>
+    </section>
+
+    <section class="list" id="list" aria-label="Piezas del banco"></section>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  var viewer = document.getElementById('viewer');
+  if (!window.THREE) { document.getElementById('fallback').style.display = 'flex'; return; }
+
+  var N = 2.6, RD = 0.010, P = 4;
+
+  var GROUPS = {
+    est: { name: 'Estructura', color: '#8C969E' },
+    A: { name: 'A. Accionamiento', color: '#3F7FDB' },
+    B: { name: 'B. Generación', color: '#169E89' },
+    C: { name: 'C. Acondicionamiento de potencia', color: '#8D5CD8' },
+    D: { name: 'D. Carga y salida', color: '#D4506A' }
+  };
+
+  var COMPS = [
+    { id: 'base', g: 'est', name: 'Base de MDF', desc: 'Tablero de 30 × 20 cm y 15 mm de espesor. Todo el banco va atornillado sobre él.', a: [-142, 0, 98], o: [-36, 44] },
+    { id: 'soporte', g: 'est', name: 'Soporte del motor', desc: 'Ángulo metálico en L que sujeta el motor por los dos tornillos M4 de la cara frontal, con un bloque y una brida atrás para que no vibre.', a: [-57, 58, -22], o: [-20, -62] },
+    { id: 'bloque', g: 'est', name: 'Bloque del dínamo', desc: 'Bloque de madera que pone el eje del dínamo a la misma altura que el del motor. Sus ranuras permiten correrlo hacia la rueda.', a: [64, 10, 52], o: [64, 46] },
+    { id: 'guarda', g: 'est', name: 'Guarda de acrílico', desc: 'Cubre la rueda y el rodillo mientras giran. Desde el panel se puede ocultar para ver la transmisión.', a: [-29, 74.5, -14], o: [-24, -74] },
+    { id: 'm1', g: 'A', name: 'Bornera M1: fuente', desc: 'Entrada de la fuente de laboratorio (0–30 V, límite de 3 A). Es el punto para medir el voltaje del motor, Vm.', a: [-134, 11, 66], o: [-54, 40] },
+    { id: 'interruptor', g: 'A', name: 'Interruptor', desc: 'Abre y cierra la línea del motor. También da el escalón de voltaje de la prueba de arranque.', a: [-102, 26, 66], o: [-6, 58] },
+    { id: 'shuntM', g: 'A', name: 'Shunt 0,1 Ω del motor', desc: 'Resistencia en serie con el motor. En el osciloscopio, 0,1 V equivale a 1 A de corriente del motor.', a: [-67, 15, 66], o: [34, 60] },
+    { id: 'motor', g: 'A', name: 'Motor DC 775', desc: 'Reemplaza al ciclista en el banco. Su velocidad se ajusta con el voltaje de la fuente.', a: [-100, 56, -4], o: [-46, -58] },
+    { id: 'acople', g: 'A', name: 'Acople de brida 5 mm', desc: 'Une el eje del motor con la rueda. La brida de 22 mm va pegada con epoxi en el asiento del rodamiento y los prisioneros aprietan sobre el eje.', a: [-47, 40, 0], o: [-40, -104] },
+    { id: 'rueda', g: 'A', name: 'Rueda de patineta 52 mm', desc: 'Va sin rodamientos, fija al eje del motor. Mueve el rodillo del dínamo por fricción, con una relación N = 2,6.', a: [-29, 61, -10], o: [18, -92] },
+    { id: 'cinta', g: 'A', name: 'Cinta reflectiva (M2)', desc: 'Punto de medición de velocidad. El tacómetro óptico lee aquí las rpm del motor, que son las mismas de la rueda.', a: [-13.4, 48, 0], o: [70, -60] },
+    { id: 'rodillo', g: 'B', name: 'Rodillo del dínamo', desc: 'Radio de 10 mm. Gira 2,6 veces más rápido que la rueda y en sentido contrario.', a: [-29, 35, 46], o: [-70, 48] },
+    { id: 'dinamo', g: 'B', name: 'Dínamo de botella 6 V / 3 W', desc: 'Alternador de imanes permanentes. Su voltaje y su frecuencia crecen con la velocidad del rodillo.', a: [52, 52, 36], o: [44, -74] },
+    { id: 'soporteDin', g: 'B', name: 'Soporte y resorte del dínamo', desc: 'El dínamo gira sobre este pivote y el resorte empuja el rodillo contra la rueda. De esa presión depende que no patine.', a: [50, 14, 47], o: [96, 12] },
+    { id: 'placa', g: 'C', name: 'Baquelita perforada', desc: 'Placa de 5 × 7 cm donde van el puente, el filtro, el shunt y las borneras M3 y M4.', a: [12, 7.6, -41], o: [-74, 14] },
+    { id: 'm3', g: 'C', name: 'Bornera M3: entrada AC', desc: 'Aquí llegan los dos cables del dínamo. Es el punto para medir su voltaje AC y su frecuencia.', a: [12, 13, -67.5], o: [-70, -34] },
+    { id: 'puente', g: 'C', name: 'Puente 4 × 1N5822', desc: 'Cuatro diodos Schottky que convierten la AC del dínamo en DC con poca caída de voltaje.', a: [39, 17, -71], o: [-34, -78] },
+    { id: 'shuntD', g: 'C', name: 'Shunt 1 Ω del dínamo', desc: 'Va entre el negativo del puente y GND. En el osciloscopio, 1 V equivale a 1 A de corriente rectificada.', a: [35, 20, -47.5], o: [-26, 50] },
+    { id: 'cap', g: 'C', name: 'Condensador 2200 µF', desc: 'Electrolítico de 50 V que filtra el bus DC y lo mantiene estable entre los pulsos de corriente. La franja marca el negativo.', a: [64, 39, -72], o: [8, -96] },
+    { id: 'tvs', g: 'C', name: 'TVS P6KE30A', desc: 'Protege al regulador: conduce si el bus pasa de unos 30 V. La banda va hacia el positivo.', a: [59, 12, -55], o: [40, 48] },
+    { id: 'm4', g: 'C', name: 'Bornera M4: bus DC', desc: 'Punto para medir el voltaje del bus y su rizado.', a: [74, 18, -55], o: [72, -40] },
+    { id: 'lm2596', g: 'C', name: 'Regulador LM2596', desc: 'Convertidor buck que baja el voltaje del bus a 5,0 V. Se calibra girando el trimmer azul antes de conectar la carga.', a: [116, 14, -82], o: [40, -84] },
+    { id: 'm5usb', g: 'D', name: 'Bornera M5 y USB', desc: 'Salida regulada de 5 V. Es el punto para medir el voltaje y la corriente que llegan a la carga.', a: [118, 13, -50], o: [82, -34] },
+    { id: 'rcarga', g: 'D', name: 'Resistencias de carga 12 Ω', desc: 'Dos resistencias de 10 W: una da 12 Ω, las dos en serie 24 Ω y en paralelo 6 Ω. Van levantadas porque se calientan.', a: [114, 19, 76], o: [46, 50] }
+  ];
+  var byId = {};
+  COMPS.forEach(function (c, i) { c.n = i + 1; byId[c.id] = c; });
+
+  // ---------- Renderer, scene, camera ----------
+  var renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+  } catch (e) {
+    document.getElementById('fallback').style.display = 'flex';
+    return;
+  }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  var canvas = renderer.domElement;
+  canvas.setAttribute('tabindex', '0');
+  canvas.setAttribute('aria-label', 'Modelo 3D del banco de pruebas. Usa las flechas para girar y las teclas más y menos para acercar.');
+  canvas.style.cursor = 'grab';
+  viewer.insertBefore(canvas, viewer.firstChild);
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(32, 1, 5, 6000);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f94, 0.78));
+  var sun = new THREE.DirectionalLight(0xffffff, 0.82);
+  sun.position.set(180, 420, 260);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  var sc = sun.shadow.camera;
+  sc.left = -260; sc.right = 260; sc.top = 260; sc.bottom = -260; sc.near = 50; sc.far = 1200;
+  sun.shadow.bias = -0.0006;
+  scene.add(sun);
+  var fill = new THREE.DirectionalLight(0xffffff, 0.32);
+  fill.position.set(-300, 200, -220);
+  scene.add(fill);
+
+  var shadowMat = new THREE.ShadowMaterial({ opacity: 0.16 });
+  var ground = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), shadowMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -15.05;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // ---------- Materials ----------
+  function std(o) { return new THREE.MeshStandardMaterial(o); }
+  var M = {
+    mdf: std({ color: 0xB58E5C, roughness: 0.9 }),
+    wood: std({ color: 0xC9A46E, roughness: 0.85 }),
+    alu: std({ color: 0xB9C0C6, metalness: 0.75, roughness: 0.35 }),
+    steel: std({ color: 0x6A7178, metalness: 0.7, roughness: 0.38 }),
+    chrome: std({ color: 0xD2D7DC, metalness: 0.9, roughness: 0.22 }),
+    chromeDS: std({ color: 0xD2D7DC, metalness: 0.9, roughness: 0.22, side: THREE.DoubleSide }),
+    blackPl: std({ color: 0x252729, roughness: 0.6 }),
+    brass: std({ color: 0xC9A040, metalness: 0.8, roughness: 0.35 }),
+    urethane: std({ color: 0x2DB59D, roughness: 0.45, side: THREE.DoubleSide }),
+    core: std({ color: 0xE9EAEA, roughness: 0.6, side: THREE.DoubleSide }),
+    knurl: std({ color: 0x9BA3AB, metalness: 0.8, roughness: 0.4, flatShading: true }),
+    acrylic: new THREE.MeshPhysicalMaterial({ color: 0xDCEBFA, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide }),
+    pcbBlue: std({ color: 0x1F58B8, roughness: 0.55 }),
+    pcbGreen: std({ color: 0x2F7D3A, roughness: 0.55 }),
+    term: std({ color: 0x2A6BD1, roughness: 0.5 }),
+    ceramic: std({ color: 0xEDEAE3, roughness: 0.95 }),
+    capSleeve: std({ color: 0x1E2F63, roughness: 0.45 }),
+    capStripe: std({ color: 0xBFC6CF, roughness: 0.5, side: THREE.DoubleSide }),
+    silverBand: std({ color: 0xC8CDD2, metalness: 0.6, roughness: 0.35 }),
+    whiteBand: std({ color: 0xF2F2F2, roughness: 0.6 }),
+    tape: std({ color: 0xF4F6F8, metalness: 0.9, roughness: 0.12 }),
+    red: std({ color: 0xC9342A, roughness: 0.55 }),
+    black: std({ color: 0x1E1F21, roughness: 0.55 }),
+    tinned: std({ color: 0xC5CBD0, metalness: 0.85, roughness: 0.3 }),
+    inductor: std({ color: 0x2A2C2E, roughness: 0.7 }),
+    redDot: std({ color: 0xD8322A, roughness: 0.5 })
+  };
+
+  // ---------- Geometry helpers ----------
+  var parts = {}, pickables = [], occluders = [];
+  function reg(m, comp) {
+    m.castShadow = true; m.receiveShadow = true;
+    m.userData.comp = comp || null;
+    if (comp) { (parts[comp] = parts[comp] || []).push(m); pickables.push(m); }
+    occluders.push(m);
+    return m;
+  }
+  function mk(parent, geom, mat, comp, x, y, z) {
+    var mm = Array.isArray(mat) ? mat.map(function (a) { return a.clone(); }) : mat.clone();
+    var m = new THREE.Mesh(geom, mm);
+    m.position.set(x || 0, y || 0, z || 0);
+    parent.add(m);
+    return reg(m, comp);
+  }
+  function box(parent, mat, comp, x0, x1, y0, y1, z0, z1) {
+    return mk(parent, new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), mat, comp, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+  }
+  function cylX(parent, mat, comp, r, x0, x1, y, z, seg, rEnd) {
+    var g = new THREE.CylinderGeometry(rEnd === undefined ? r : rEnd, r, x1 - x0, seg || 32);
+    g.rotateZ(-Math.PI / 2);
+    return mk(parent, g, mat, comp, (x0 + x1) / 2, y, z);
+  }
+  function cylY(parent, mat, comp, r, x, y0, y1, z, seg) {
+    return mk(parent, new THREE.CylinderGeometry(r, r, y1 - y0, seg || 28), mat, comp, x, (y0 + y1) / 2, z);
+  }
+  function cylZ(parent, mat, comp, r, x, y, z0, z1, seg) {
+    var g = new THREE.CylinderGeometry(r, r, z1 - z0, seg || 24);
+    g.rotateX(Math.PI / 2);
+    return mk(parent, g, mat, comp, x, y, (z0 + z1) / 2);
+  }
+  function latheX(parent, mat, comp, profile, x0, seg) {
+    var g = new THREE.LatheGeometry(profile.map(function (p) { return new THREE.Vector2(p[0], p[1]); }), seg || 64);
+    g.rotateZ(-Math.PI / 2);
+    g.translate(x0, 0, 0);
+    return mk(parent, g, mat, comp, 0, 0, 0);
+  }
+  function ringX(parent, mat, comp, R, tube, x, y, z) {
+    var g = new THREE.TorusGeometry(R, tube, 10, 56);
+    g.rotateY(Math.PI / 2);
+    return mk(parent, g, mat, comp, x, y, z);
+  }
+  function wire(pts, mat, r) {
+    var curve = new THREE.CatmullRomCurve3(pts.map(function (p) { return new THREE.Vector3(p[0], p[1], p[2]); }));
+    var g = new THREE.TubeGeometry(curve, Math.max(32, pts.length * 18), r || 1.1, 8, false);
+    var m = new THREE.Mesh(g, mat.clone());
+    scene.add(m);
+    return reg(m, null);
+  }
+  class Helix extends THREE.Curve {
+    constructor(radius, length, turns) { super(); this.radius = radius; this.length = length; this.turns = turns; }
+    getPoint(t, target) {
+      var v = target || new THREE.Vector3();
+      var a = t * this.turns * Math.PI * 2;
+      return v.set(t * this.length, Math.cos(a) * this.radius, Math.sin(a) * this.radius);
+    }
+  }
+  function bornera(comp, cx, cz, y0, rotY) {
+    var g = new THREE.Group();
+    g.position.set(cx, y0, cz);
+    g.rotation.y = rotY || 0;
+    scene.add(g);
+    box(g, M.term, comp, -5.1, 5.1, 0, 10, -4, 4);
+    [-2.55, 2.55].forEach(function (xx) {
+      cylY(g, M.tinned, comp, 1.7, xx, 10, 10.8, -1, 16);
+      box(g, M.black, comp, xx - 1.6, xx + 1.6, 2, 5.5, 4, 4.2);
+    });
+    return g;
+  }
+  function ceramicR(comp, x0, x1, cz, y0, s, yBase) {
+    box(scene, M.ceramic, comp, x0, x1, y0, y0 + s, cz - s / 2, cz + s / 2);
+    var yc = y0 + s / 2;
+    cylX(scene, M.tinned, comp, 0.6, x0 - 4, x0, yc, cz, 10);
+    cylX(scene, M.tinned, comp, 0.6, x1, x1 + 4, yc, cz, 10);
+    cylY(scene, M.tinned, comp, 0.6, x0 - 4, yBase, yc, cz, 10);
+    cylY(scene, M.tinned, comp, 0.6, x1 + 4, yBase, yc, cz, 10);
+  }
+  function axialDiode(comp, cx, cz, yBoard, len, r, bandMat, cathodeRight) {
+    var y = yBoard + 3 + r, x0 = cx - len / 2, x1 = cx + len / 2;
+    cylX(scene, M.black, comp, r, x0, x1, y, cz, 20);
+    var b0 = cathodeRight ? x1 - 2.2 : x0 + 0.6;
+    cylX(scene, bandMat, comp, r + 0.06, b0, b0 + 1.6, y, cz, 20);
+    cylX(scene, M.tinned, comp, 0.5, x0 - 3, x0, y, cz, 8);
+    cylX(scene, M.tinned, comp, 0.5, x1, x1 + 3, y, cz, 8);
+    cylY(scene, M.tinned, comp, 0.5, x0 - 3, yBoard, y, cz, 8);
+    cylY(scene, M.tinned, comp, 0.5, x1 + 3, yBoard, y, cz, 8);
+  }
+  function perfTexture() {
+    var c = document.createElement('canvas');
+    c.width = 540; c.height = 380;
+    var g = c.getContext('2d');
+    g.fillStyle = '#B98B4E'; g.fillRect(0, 0, 540, 380);
+    for (var i = 0; i < 27; i++) {
+      for (var j = 0; j < 19; j++) {
+        var x = 10 + i * 20, y = 10 + j * 20;
+        g.fillStyle = '#D7A65E'; g.beginPath(); g.arc(x, y, 6, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#4E3418'; g.beginPath(); g.arc(x, y, 2.4, 0, Math.PI * 2); g.fill();
+      }
+    }
+    var t = new THREE.CanvasTexture(c);
+    t.anisotropy = 4;
+    return t;
+  }
+
+  // ---------- Base ----------
+  box(scene, M.mdf, 'base', -150, 150, -15, 0, -100, 100);
+
+  // ---------- Motor (static part) ----------
+  cylX(scene, M.blackPl, 'motor', 21, -125, -110, 35, 0, 56);
+  cylX(scene, M.steel, 'motor', 21, -110, -58, 35, 0, 56);
+  ringX(scene, M.blackPl, 'motor', 21.05, 0.6, -104, 35, 0);
+  ringX(scene, M.blackPl, 'motor', 21.05, 0.6, -64, 35, 0);
+  cylX(scene, M.alu, 'motor', 8.75, -58, -53.5, 35, 0, 32);
+  box(scene, M.brass, 'motor', -129, -125, 40, 46, 7.6, 8.4);
+  box(scene, M.brass, 'motor', -129, -125, 40, 46, -8.4, -7.6);
+  cylX(scene, M.redDot, 'motor', 1.6, -125.6, -125, 30, 10, 16);
+
+  // ---------- Motor bracket ----------
+  var plate = new THREE.Shape();
+  plate.moveTo(-25, 0); plate.lineTo(25, 0); plate.lineTo(25, 58); plate.lineTo(-25, 58); plate.lineTo(-25, 0);
+  var hole = new THREE.Path();
+  hole.absarc(0, 35, 9.6, 0, Math.PI * 2, true);
+  plate.holes.push(hole);
+  var plateGeo = new THREE.ExtrudeGeometry(plate, { depth: 3, bevelEnabled: false, curveSegments: 32 });
+  plateGeo.rotateY(Math.PI / 2);
+  mk(scene, plateGeo, M.alu, 'soporte', -58, 0, 0);
+  box(scene, M.alu, 'soporte', -100, -55, 0, 3, -25, 25);
+  cylX(scene, M.steel, 'soporte', 3.4, -55, -52.8, 35, 14.5, 20);
+  cylX(scene, M.steel, 'soporte', 3.4, -55, -52.8, 35, -14.5, 20);
+  [[-90, 16], [-90, -16], [-68, 16], [-68, -16]].forEach(function (p) { cylY(scene, M.steel, 'soporte', 3, p[0], 3, 4.3, p[1], 18); });
+  box(scene, M.wood, 'soporte', -122, -104, 0, 14, -16, 16);
+  ringX(scene, M.black, 'soporte', 21.7, 1.1, -113, 35, 0);
+
+  // ---------- Rotating motor shaft, coupler and wheel ----------
+  var motorRot = new THREE.Group();
+  motorRot.position.set(0, 35, 0);
+  scene.add(motorRot);
+  cylX(motorRot, M.chrome, 'motor', 2.5, -53.5, -36, 0, 0, 20);
+  cylX(motorRot, M.alu, 'acople', 5, -50, -40, 0, 0, 32);
+  cylX(motorRot, M.alu, 'acople', 11, -40, -38, 0, 0, 40);
+  cylY(motorRot, M.black, 'acople', 1.2, -46.5, 4.4, 5.4, 0, 10);
+  cylZ(motorRot, M.black, 'acople', 1.2, -46.5, 0, 4.4, 5.4, 10);
+  latheX(motorRot, M.urethane, 'rueda', [[15.6, 0.4], [21, 0.5], [24.2, 1.4], [25.7, 3.8], [26, 8], [26, 24], [25.7, 28.2], [24.2, 30.6], [21, 31.5], [15.6, 31.6], [15.6, 0.4]], -45, 72);
+  latheX(motorRot, M.core, 'rueda', [[4, 7], [11, 7], [11, 0.6], [15.8, 0.6], [15.8, 31.4], [11, 31.4], [11, 25], [4, 25], [4, 7]], -45, 48);
+  box(motorRot, M.tape, 'cinta', -13.7, -13.2, 11.4, 15.4, -4, 4);
+
+  // ---------- Dynamo roller (rotating) ----------
+  var dynRot = new THREE.Group();
+  dynRot.position.set(0, 35, 36);
+  scene.add(dynRot);
+  cylX(dynRot, M.knurl, 'rodillo', 10, -35, -23, 0, 0, 30);
+  cylX(dynRot, M.chrome, 'rodillo', 4.2, -37, -35, 0, 0, 6);
+  cylX(dynRot, M.chrome, 'rodillo', 2.6, -23, -13, 0, 0, 16);
+
+  // ---------- Dynamo body ----------
+  var dynBody = new THREE.Group();
+  dynBody.position.set(0, 35, 36);
+  scene.add(dynBody);
+  latheX(dynBody, M.chromeDS, 'dinamo', [[0, 0], [6.5, 0], [7.5, 3], [11, 6.5], [15.5, 10], [17, 14], [17, 80], [16, 86], [12, 90], [6, 92], [0, 92]], -14, 64);
+  cylX(dynBody, M.blackPl, 'dinamo', 17.3, 50, 60, 0, 0, 56);
+  cylX(dynBody, M.blackPl, 'dinamo', 4, 76, 79.5, 0, 0, 20);
+  box(dynBody, M.brass, 'dinamo', 79.5, 85, -0.6, 0.6, -3, 3);
+
+  // ---------- Dynamo mount ----------
+  ringX(scene, M.steel, 'soporteDin', 17.6, 1.6, 40, 35, 36);
+  ringX(scene, M.steel, 'soporteDin', 17.6, 1.6, 22, 35, 36);
+  box(scene, M.steel, 'soporteDin', 36, 44, 12, 19, 30, 44);
+  box(scene, M.steel, 'soporteDin', 28, 56, 10, 12, 38, 50);
+  box(scene, M.steel, 'soporteDin', 28, 30, 12, 18, 42, 50);
+  box(scene, M.steel, 'soporteDin', 54, 56, 12, 18, 42, 50);
+  cylX(scene, M.chrome, 'soporteDin', 1.6, 29, 55, 14, 46, 16);
+  var springGeo = new THREE.TubeGeometry(new Helix(3.2, 18, 7), 160, 0.55, 8, false);
+  mk(scene, springGeo, M.chrome, 'soporteDin', 32, 14, 46);
+  box(scene, M.blackPl, 'soporteDin', 37, 43, 52, 60, 33, 39);
+
+  // ---------- Dynamo block ----------
+  box(scene, M.wood, 'bloque', 16, 66, 0, 10, 22, 54);
+  box(scene, M.black, 'bloque', 19.5, 24.5, 10, 10.25, 27, 49);
+  box(scene, M.black, 'bloque', 57.5, 62.5, 10, 10.25, 27, 49);
+  cylY(scene, M.steel, 'bloque', 3.6, 22, 10, 11.6, 40, 20);
+  cylY(scene, M.steel, 'bloque', 3.6, 60, 10, 11.6, 40, 20);
+
+  // ---------- Guard ----------
+  var guardMeshes = [
+    box(scene, M.acrylic, 'guarda', -52, -6, 72, 74.5, -34, 58),
+    box(scene, M.acrylic, 'guarda', -52, -6, 0, 72, 56, 58),
+    box(scene, M.acrylic, 'guarda', -52, -6, 0, 72, -34, -32)
+  ];
+  guardMeshes.forEach(function (m) { m.castShadow = false; m.renderOrder = 2; });
+
+  // ---------- Motor-side electrics ----------
+  bornera('m1', -134, 66, 0, 0);
+  box(scene, M.blackPl, 'interruptor', -112, -92, 0, 14, 60, 72);
+  cylY(scene, M.chrome, 'interruptor', 3.2, -102, 14, 16.5, 66, 6);
+  var lever = cylY(scene, M.chrome, 'interruptor', 1.3, -102, 16, 27, 66, 12);
+  lever.rotation.z = 0.35; lever.position.x -= 1.9;
+  box(scene, M.brass, 'interruptor', -113.5, -112, 4, 9, 64, 68);
+  box(scene, M.brass, 'interruptor', -92, -90.5, 4, 9, 64, 68);
+  cylY(scene, M.brass, 'shuntM', 1.8, -82, 0, 6, 66, 12);
+  cylY(scene, M.brass, 'shuntM', 1.8, -52, 0, 6, 66, 12);
+  ceramicR('shuntM', -78, -56, 66, 6, 9, 6);
+
+  // ---------- Perfboard and its parts ----------
+  [[13, -87], [77, -87], [13, -43], [77, -43]].forEach(function (p) { cylY(scene, M.brass, 'placa', 2.2, p[0], 0, 6, p[1], 6); });
+  var perfTop = std({ map: perfTexture(), roughness: 0.8 });
+  var perfSide = std({ color: 0xA77A42, roughness: 0.85 });
+  mk(scene, new THREE.BoxGeometry(70, 1.6, 50), [perfSide, perfSide, perfTop, perfSide, perfSide, perfSide], 'placa', 45, 6.8, -65);
+  box(scene, M.tinned, 'placa', 54.5, 55.5, 7.6, 8.1, -79, -58);
+  box(scene, M.tinned, 'placa', 24, 55.5, 7.6, 8.1, -71.4, -70.6);
+  box(scene, M.tinned, 'placa', 52, 69, 7.6, 8.1, -55.4, -54.6);
+  bornera('m3', 16, -67.5, 7.6, -Math.PI / 2);
+  axialDiode('puente', 31, -77, 7.6, 9.5, 2.65, M.silverBand, true);
+  axialDiode('puente', 31, -65, 7.6, 9.5, 2.65, M.silverBand, true);
+  axialDiode('puente', 47, -77, 7.6, 9.5, 2.65, M.silverBand, false);
+  axialDiode('puente', 47, -65, 7.6, 9.5, 2.65, M.silverBand, false);
+  ceramicR('shuntD', 24, 46, -47.5, 10.6, 9, 7.6);
+  cylY(scene, M.capSleeve, 'cap', 8, 64, 7.6, 38.6, -72, 40);
+  var stripeGeo = new THREE.CylinderGeometry(8.06, 8.06, 30.4, 12, 1, true, -0.35, 0.7);
+  mk(scene, stripeGeo, M.capStripe, 'cap', 64, 23.1, -72);
+  cylY(scene, M.chrome, 'cap', 7.4, 64, 38.6, 39, -72, 32);
+  box(scene, M.black, 'cap', 59, 69, 39, 39.15, -72.4, -71.6);
+  box(scene, M.black, 'cap', 63.6, 64.4, 39, 39.15, -77, -67);
+  axialDiode('tvs', 59, -55, 7.6, 7.6, 1.8, M.whiteBand, true);
+  bornera('m4', 74, -55, 7.6, Math.PI / 2);
+
+  // ---------- LM2596 module ----------
+  [[97, -90], [136, -90], [97, -73], [136, -73]].forEach(function (p) { cylY(scene, M.brass, 'lm2596', 1.8, p[0], 0, 5, p[1], 6); });
+  box(scene, M.pcbBlue, 'lm2596', 94, 139, 5, 6.6, -93, -70);
+  box(scene, M.inductor, 'lm2596', 103, 115, 6.6, 13.6, -88, -76);
+  box(scene, M.black, 'lm2596', 119, 129, 6.6, 11, -90, -81);
+  box(scene, M.tinned, 'lm2596', 120, 128, 6.6, 7, -80.5, -77.5);
+  cylY(scene, M.capSleeve, 'lm2596', 3.15, 98.5, 6.6, 17.6, -86, 24);
+  cylY(scene, M.chrome, 'lm2596', 3, 98.5, 17.6, 17.9, -86, 24);
+  cylY(scene, M.capSleeve, 'lm2596', 3.15, 134.5, 6.6, 17.6, -86, 24);
+  cylY(scene, M.chrome, 'lm2596', 3, 134.5, 17.6, 17.9, -86, 24);
+  box(scene, M.term, 'lm2596', 120, 129.5, 6.6, 16.6, -76, -71.2);
+  cylY(scene, M.brass, 'lm2596', 1.2, 121.6, 16.6, 17.4, -73.6, 12);
+
+  // ---------- USB + M5 ----------
+  [[102, -60], [134, -60], [102, -45], [134, -45]].forEach(function (p) { cylY(scene, M.brass, 'm5usb', 1.6, p[0], 0, 5, p[1], 6); });
+  box(scene, M.pcbGreen, 'm5usb', 100, 136, 5, 6.6, -62, -43);
+  box(scene, M.chrome, 'm5usb', 104, 116, 6.6, 12.4, -57, -43);
+  box(scene, M.black, 'm5usb', 105.5, 114.5, 7.6, 11.4, -43.05, -42.85);
+  bornera('m5usb', 126, -52, 6.6, Math.PI / 2);
+
+  // ---------- Load resistors ----------
+  [[86, 67], [142, 67], [86, 85], [142, 85]].forEach(function (p) { cylY(scene, M.brass, 'rcarga', 2, p[0], 0, 7, p[1], 12); });
+  ceramicR('rcarga', 90, 138, 67, 9, 10, 7);
+  ceramicR('rcarga', 90, 138, 85, 9, 10, 7);
+
+  // ---------- Wires ----------
+  wire([[-136.5, 3.8, 70.5], [-138, 16, 78], [-124, 20, 78], [-114, 13, 70], [-113, 7, 66]], M.red);
+  wire([[-90.5, 7, 66], [-86, 22, 56], [-104, 44, 30], [-124, 48, 14], [-128, 43, 8.5]], M.red);
+  wire([[-128, 43, -8.5], [-136, 46, -14], [-144, 26, 10], [-120, 8, 44], [-86, 8, 60], [-82, 6.5, 66]], M.black);
+  wire([[-52, 6.5, 66], [-48, 4, 80], [-90, 3, 88], [-128, 4, 82], [-131.5, 3.8, 70.5]], M.black);
+  wire([[85, 35, 36], [92, 34, 30], [96, 22, 12], [88, 8, -24], [50, 5, -33], [10, 5, -40], [4, 8, -60], [8, 11, -70], [11.6, 11.4, -70]], M.red);
+  wire([[44, 16, 29.5], [44, 8, 18], [30, 4, -10], [8, 4, -38], [3, 8, -60], [8, 11, -65], [11.6, 11.4, -65]], M.black);
+  wire([[76, 8.4, -84], [84, 13, -86], [92, 10, -86], [95.5, 7.2, -86]], M.red, 0.9);
+  wire([[76, 8.4, -88], [84, 12, -90], [92, 9, -90], [95.5, 7.2, -90]], M.black, 0.9);
+  wire([[137, 7.2, -74], [142, 12, -68], [138, 12, -56], [130.4, 10.4, -54.5]], M.red, 0.9);
+  wire([[137, 7.2, -79], [145, 12, -70], [141, 12, -50], [130.4, 10.4, -49.5]], M.black, 0.9);
+  wire([[131, 12, -55], [148, 10, -40], [148, 6, 40], [143, 7, 62], [142, 7, 67]], M.red);
+  wire([[131, 12, -49], [145, 8, -35], [146, 5, 50], [100, 4, 58], [86, 7, 64], [86, 7, 67]], M.black);
+
+  var occluderList = occluders.filter(function (m) { return m.userData.comp !== 'guarda'; });
+
+  // ---------- Labels ----------
+  var labelsEl = document.getElementById('labels');
+  var svg = document.getElementById('leaders');
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var labels = COMPS.map(function (c) {
+    var el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'chip';
+    el.style.setProperty('--g', GROUPS[c.g].color);
+    el.innerHTML = '<b>' + c.n + '</b><span class="nm">' + c.name + '</span>';
+    el.setAttribute('aria-label', c.n + '. ' + c.name);
+    el.addEventListener('click', function () { select(c.id, false); });
+    el.addEventListener('mouseenter', function () { setHover(c.id); });
+    el.addEventListener('mouseleave', function () { setHover(null); });
+    labelsEl.appendChild(el);
+    var line = document.createElementNS(SVGNS, 'line');
+    var dot = document.createElementNS(SVGNS, 'circle');
+    dot.setAttribute('r', '2.6');
+    svg.appendChild(line); svg.appendChild(dot);
+    return { id: c.id, el: el, line: line, dot: dot, anchor: new THREE.Vector3(c.a[0], c.a[1], c.a[2]), off: c.o, occ: false };
+  });
+
+  // ---------- Panel: list and info ----------
+  var listEl = document.getElementById('list');
+  var listButtons = {};
+  (function buildList() {
+    var html = '<h2>Piezas</h2>';
+    listEl.innerHTML = html;
+    Object.keys(GROUPS).forEach(function (gk) {
+      var g = GROUPS[gk];
+      var h = document.createElement('h3');
+      h.style.setProperty('--g', g.color);
+      h.innerHTML = '<span class="dot"></span>' + g.name;
+      listEl.appendChild(h);
+      var ol = document.createElement('ol');
+      COMPS.filter(function (c) { return c.g === gk; }).forEach(function (c) {
+        var li = document.createElement('li');
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.innerHTML = '<span class="num">' + c.n + '</span><span>' + c.name + '</span>';
+        b.addEventListener('click', function () { select(c.id, true); });
+        b.addEventListener('mouseenter', function () { setHover(c.id); });
+        b.addEventListener('mouseleave', function () { setHover(null); });
+        listButtons[c.id] = b;
+        li.appendChild(b); ol.appendChild(li);
+      });
+      listEl.appendChild(ol);
+    });
+  })();
+
+  var infoEl = document.getElementById('info');
+  var selected = null, hovered = null;
+  function renderInfo() {
+    var c = selected ? byId[selected] : null;
+    if (!c) {
+      infoEl.innerHTML = '<p class="empty">Toca una pieza en el modelo o un nombre de la lista para ver qué hace.</p>';
+      return;
+    }
+    var g = GROUPS[c.g];
+    infoEl.innerHTML = '<h3>' + c.n + '. ' + c.name + '</h3>' +
+      '<div class="grp" style="--g:' + g.color + '"><span class="dot"></span>' + g.name + '</div>' +
+      '<p>' + c.desc + '</p>' +
+      '<div class="row"><button class="btn" type="button" id="zoomBtn">Acercar a la pieza</button>' +
+      '<button class="btn" type="button" id="clearBtn">Quitar selección</button></div>';
+    document.getElementById('zoomBtn').addEventListener('click', function () { focusOn(c.id); });
+    document.getElementById('clearBtn').addEventListener('click', function () { select(null); });
+  }
+  var ACCENT_HEX = 0xE39B10;
+  function refreshHighlights() {
+    Object.keys(parts).forEach(function (comp) {
+      var level = comp === selected ? 0.5 : (comp === hovered ? 0.22 : 0);
+      parts[comp].forEach(function (m) {
+        var mats = Array.isArray(m.material) ? m.material : [m.material];
+        mats.forEach(function (mt) {
+          if (!mt.emissive) return;
+          if (level > 0) { mt.emissive.setHex(ACCENT_HEX); mt.emissiveIntensity = level; }
+          else { mt.emissive.setHex(0x000000); mt.emissiveIntensity = 1; }
+        });
+      });
+    });
+    labels.forEach(function (L) {
+      var hot = L.id === selected || L.id === hovered;
+      L.el.classList.toggle('hot', hot);
+      L.line.classList.toggle('hot', hot);
+      L.dot.classList.toggle('hot', hot);
+    });
+    Object.keys(listButtons).forEach(function (id) {
+      listButtons[id].setAttribute('aria-current', id === selected ? 'true' : 'false');
+    });
+  }
+  function select(id, focus) {
+    selected = id;
+    renderInfo();
+    refreshHighlights();
+    if (id && focus) focusOn(id);
+    if (id && window.matchMedia('(max-width: 820px)').matches && focus) {
+      viewer.scrollIntoView({ behavior: prefersReduced() ? 'auto' : 'smooth', block: 'start' });
+    }
+  }
+  function setHover(id) {
+    if (hovered === id) return;
+    hovered = id;
+    refreshHighlights();
+  }
+
+  // ---------- Camera control ----------
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function prefersReduced() { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  var ctl = { target: new THREE.Vector3(0, 18, 0), r: 640, th: 0.62, ph: 0.98 };
+  var goal = { target: ctl.target.clone(), r: 640, th: 0.62, ph: 0.98 };
+  var VIEWS = {
+    todo: { t: [0, 18, 0], r: 640, th: 0.62, ph: 0.98, fit: true },
+    transmision: { t: [-28, 38, 18], r: 250, th: 0.95, ph: 1.02 },
+    electronica: { t: [80, 8, -66], r: 280, th: 2.6, ph: 0.74 },
+    arriba: { t: [0, 0, 0], r: 700, th: 0, ph: 0.02, fit: true },
+    frente: { t: [0, 25, 0], r: 640, th: 0, ph: 1.38, fit: true }
+  };
+  function fitFactor() {
+    var a = camera.aspect || 1.5;
+    return Math.max(1, 1.5 / a);
+  }
+  function nearestAngle(from, to) { return to + Math.PI * 2 * Math.round((from - to) / (Math.PI * 2)); }
+  function applyView(name, instant) {
+    var v = VIEWS[name];
+    goal.target.set(v.t[0], v.t[1], v.t[2]);
+    goal.r = clamp(v.r * (v.fit ? fitFactor() : Math.max(1, 1.1 / (camera.aspect || 1.5))), 110, 1500);
+    goal.th = nearestAngle(ctl.th, v.th);
+    goal.ph = v.ph;
+    if (instant || prefersReduced()) { ctl.target.copy(goal.target); ctl.r = goal.r; ctl.th = goal.th; ctl.ph = goal.ph; }
+    document.querySelectorAll('#views .btn').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.view === name ? 'true' : 'false'); });
+  }
+  function clearViewButtons() {
+    document.querySelectorAll('#views .btn').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+  }
+  function focusOn(id) {
+    var c = byId[id];
+    goal.target.set(c.a[0], c.a[1], c.a[2]);
+    goal.r = clamp(190 * Math.max(1, 1.1 / (camera.aspect || 1.5)), 110, 600);
+    if (prefersReduced()) { ctl.target.copy(goal.target); ctl.r = goal.r; }
+    clearViewButtons();
+  }
+  function applyCamera() {
+    var sp = Math.sin(ctl.ph);
+    camera.position.set(
+      ctl.target.x + ctl.r * sp * Math.sin(ctl.th),
+      ctl.target.y + ctl.r * Math.cos(ctl.ph),
+      ctl.target.z + ctl.r * sp * Math.cos(ctl.th)
+    );
+    camera.lookAt(ctl.target);
+  }
+  var vRight = new THREE.Vector3(), vUp = new THREE.Vector3();
+  function pan(dx, dy) {
+    var s = goal.r * 0.0016;
+    vRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    vUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+    goal.target.addScaledVector(vRight, -dx * s).addScaledVector(vUp, dy * s);
+    goal.target.x = clamp(goal.target.x, -260, 260);
+    goal.target.y = clamp(goal.target.y, -20, 160);
+    goal.target.z = clamp(goal.target.z, -220, 220);
+    clearViewButtons();
+  }
+
+  var pointers = new Map(), dragMode = null, downPos = null, moved = false, pinch = null;
+  function pinchInfo() {
+    var pts = Array.from(pointers.values());
+    return { d: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1, x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+  }
+  canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  canvas.addEventListener('pointerdown', function (e) {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 1) {
+      downPos = { x: e.clientX, y: e.clientY };
+      moved = false;
+      dragMode = (e.button === 2 || e.shiftKey) ? 'pan' : 'rotate';
+    } else if (pointers.size === 2) {
+      dragMode = 'pinch';
+      pinch = pinchInfo();
+      moved = true;
+    }
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    if (!pointers.has(e.pointerId)) { if (e.pointerType === 'mouse') queueHover(e); return; }
+    var p = pointers.get(e.pointerId);
+    var dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    if (downPos && Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) > 4) moved = true;
+    if (pointers.size === 2 && pinch) {
+      var info = pinchInfo();
+      goal.r = clamp(goal.r * (pinch.d / info.d), 110, 1500);
+      pan(info.x - pinch.x, info.y - pinch.y);
+      pinch = info;
+      return;
+    }
+    if (!moved) return;
+    if (dragMode === 'rotate') {
+      goal.th -= dx * 0.006;
+      goal.ph = clamp(goal.ph - dy * 0.006, 0.03, 1.52);
+      clearViewButtons();
+    } else if (dragMode === 'pan') {
+      pan(dx, dy);
+    }
+  });
+  function endPointer(e) {
+    var wasSingle = pointers.size === 1;
+    pointers.delete(e.pointerId);
+    if (wasSingle && !moved && e.type === 'pointerup') {
+      var id = pickAt(e.clientX, e.clientY);
+      select(id, false);
+    }
+    if (pointers.size < 2) pinch = null;
+    if (pointers.size === 1) { dragMode = 'rotate'; var rest = Array.from(pointers.values())[0]; downPos = { x: rest.x, y: rest.y }; }
+    if (pointers.size === 0) dragMode = null;
+  }
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse' && !pointers.size) setHover(null); });
+  canvas.addEventListener('dblclick', function (e) {
+    var id = pickAt(e.clientX, e.clientY);
+    if (id) { select(id, false); focusOn(id); }
+  });
+  canvas.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    goal.r = clamp(goal.r * Math.exp(e.deltaY * 0.0012), 110, 1500);
+    clearViewButtons();
+  }, { passive: false });
+  canvas.addEventListener('keydown', function (e) {
+    var k = e.key;
+    if (k === 'ArrowLeft') goal.th += 0.12;
+    else if (k === 'ArrowRight') goal.th -= 0.12;
+    else if (k === 'ArrowUp') goal.ph = clamp(goal.ph - 0.1, 0.03, 1.52);
+    else if (k === 'ArrowDown') goal.ph = clamp(goal.ph + 0.1, 0.03, 1.52);
+    else if (k === '+' || k === '=') goal.r = clamp(goal.r * 0.88, 110, 1500);
+    else if (k === '-' || k === '_') goal.r = clamp(goal.r * 1.14, 110, 1500);
+    else return;
+    e.preventDefault();
+    clearViewButtons();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && selected) select(null); });
+
+  var pickRay = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function pickAt(cx, cy) {
+    var rect = canvas.getBoundingClientRect();
+    ndc.set(((cx - rect.left) / rect.width) * 2 - 1, -((cy - rect.top) / rect.height) * 2 + 1);
+    pickRay.setFromCamera(ndc, camera);
+    var hits = pickRay.intersectObjects(pickables, false).filter(function (h) { return h.object.visible; });
+    if (!hits.length) return null;
+    var solid = null;
+    for (var i = 0; i < hits.length; i++) { if (hits[i].object.userData.comp !== 'guarda') { solid = hits[i]; break; } }
+    return (solid || hits[0]).object.userData.comp;
+  }
+  var hoverQueued = null;
+  function queueHover(e) {
+    if (hoverQueued) { hoverQueued = { x: e.clientX, y: e.clientY }; return; }
+    hoverQueued = { x: e.clientX, y: e.clientY };
+    requestAnimationFrame(function () {
+      var q = hoverQueued; hoverQueued = null;
+      var id = pickAt(q.x, q.y);
+      canvas.style.cursor = id ? 'pointer' : 'grab';
+      setHover(id);
+    });
+  }
+
+  // ---------- Panel controls ----------
+  document.querySelectorAll('#views .btn').forEach(function (b) {
+    b.addEventListener('click', function () { applyView(b.dataset.view, false); });
+  });
+  var labelMode = 'names';
+  document.querySelectorAll('#labelMode button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      labelMode = b.dataset.mode;
+      viewer.dataset.labels = labelMode;
+      labelsEl.classList.toggle('numbers', labelMode === 'numbers');
+      document.querySelectorAll('#labelMode button').forEach(function (o) { o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
+    });
+  });
+  document.getElementById('guardToggle').addEventListener('change', function (e) {
+    var on = e.target.checked;
+    guardMeshes.forEach(function (m) { m.visible = on; });
+    labels.forEach(function (L) { if (L.id === 'guarda') { L.el.hidden = !on; L.el.style.display = on ? '' : 'none'; L.line.style.display = on ? '' : 'none'; L.dot.style.display = on ? '' : 'none'; } });
+    if (!on && selected === 'guarda') select(null);
+  });
+  var spinning = false;
+  var spinBtn = document.getElementById('spinBtn');
+  spinBtn.addEventListener('click', function () {
+    spinning = !spinning;
+    spinBtn.setAttribute('aria-pressed', spinning ? 'true' : 'false');
+    spinBtn.textContent = spinning ? 'Detener' : 'Girar';
+  });
+  var speedEl = document.getElementById('speed');
+  var fmt = function (v) { return Math.round(v).toLocaleString('es-CO'); };
+  var rpmMotor = 0;
+  function updateSpeed() {
+    var v = Number(speedEl.value);
+    var wd = v / 3.6 / RD;
+    var rpmD = wd * 60 / (2 * Math.PI);
+    rpmMotor = rpmD / N;
+    document.getElementById('speedVal').textContent = v + ' km/h';
+    document.getElementById('rpmD').textContent = fmt(rpmD) + ' rpm';
+    document.getElementById('rpmM').textContent = fmt(rpmMotor) + ' rpm';
+    document.getElementById('freq').textContent = fmt(P * rpmD / 60) + ' Hz';
+  }
+  speedEl.addEventListener('input', updateSpeed);
+  updateSpeed();
+
+  if (window.matchMedia('(pointer: coarse)').matches) {
+    document.getElementById('hint').textContent = 'Arrastra con un dedo para girar, pellizca para acercar y usa dos dedos para desplazar. Toca una pieza para ver qué es.';
+  }
+
+  // ---------- Theme ----------
+  function syncTheme() {
+    var cs = getComputedStyle(document.documentElement);
+    var bg = cs.getPropertyValue('--scene').trim() || '#E3E8EC';
+    scene.background = new THREE.Color(bg);
+    shadowMat.opacity = parseFloat(cs.getPropertyValue('--shadow-op')) || 0.16;
+  }
+  syncTheme();
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  if (mq.addEventListener) mq.addEventListener('change', syncTheme); else if (mq.addListener) mq.addListener(syncTheme);
+  new MutationObserver(syncTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  // ---------- Resize ----------
+  var vw = 1, vh = 1;
+  function resize() {
+    vw = viewer.clientWidth || 1; vh = viewer.clientHeight || 1;
+    renderer.setSize(vw, vh, false);
+    camera.aspect = vw / vh;
+    camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(viewer);
+  resize();
+  applyView('todo', true);
+  renderInfo();
+
+  // ---------- Label projection and occlusion ----------
+  var proj = new THREE.Vector3(), occRay = new THREE.Raycaster(), dirV = new THREE.Vector3();
+  function updateLabels() {
+    if (labelMode === 'none') return;
+    var small = vw < 560 ? 0.62 : 1;
+    for (var i = 0; i < labels.length; i++) {
+      var L = labels[i];
+      if (L.el.hidden) continue;
+      proj.copy(L.anchor).project(camera);
+      if (proj.z > 1 || proj.z < -1) {
+        L.el.style.display = 'none'; L.line.style.display = 'none'; L.dot.style.display = 'none';
+        continue;
+      }
+      var x = (proj.x * 0.5 + 0.5) * vw, y = (-proj.y * 0.5 + 0.5) * vh;
+      var cx = x + L.off[0] * small, cy = y + L.off[1] * small;
+      L.el.style.display = ''; L.line.style.display = ''; L.dot.style.display = '';
+      L.el.style.transform = 'translate(' + cx.toFixed(1) + 'px,' + cy.toFixed(1) + 'px) translate(-50%,-50%)';
+      L.line.setAttribute('x1', x.toFixed(1)); L.line.setAttribute('y1', y.toFixed(1));
+      L.line.setAttribute('x2', cx.toFixed(1)); L.line.setAttribute('y2', cy.toFixed(1));
+      L.dot.setAttribute('cx', x.toFixed(1)); L.dot.setAttribute('cy', y.toFixed(1));
+      var dim = L.occ && L.id !== selected && L.id !== hovered;
+      L.el.classList.toggle('dim', dim);
+      L.line.classList.toggle('dim', dim);
+      L.dot.classList.toggle('dim', dim);
+    }
+  }
+  function updateOcclusion() {
+    var cam = camera.position;
+    for (var i = 0; i < labels.length; i++) {
+      var L = labels[i];
+      dirV.copy(L.anchor).sub(cam);
+      var dist = dirV.length();
+      dirV.normalize();
+      occRay.set(cam, dirV);
+      occRay.far = Math.max(0, dist - 3);
+      var hits = occRay.intersectObjects(occluderList, false);
+      var occ = false;
+      for (var j = 0; j < hits.length; j++) {
+        if (!hits[j].object.visible) continue;
+        if (hits[j].object.userData.comp === L.id) continue;
+        occ = true; break;
+      }
+      L.occ = occ;
+    }
+  }
+
+  // ---------- Loop ----------
+  var last = performance.now(), frame = 0;
+  function tick(now) {
+    var dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    var k = 1 - Math.pow(0.0015, dt);
+    ctl.r += (goal.r - ctl.r) * k;
+    ctl.th += (goal.th - ctl.th) * k;
+    ctl.ph += (goal.ph - ctl.ph) * k;
+    ctl.target.lerp(goal.target, k);
+    applyCamera();
+    if (spinning) {
+      var rps = rpmMotor / 60 / 40;
+      motorRot.rotation.x += rps * Math.PI * 2 * dt;
+      dynRot.rotation.x -= rps * N * Math.PI * 2 * dt;
+    }
+    renderer.render(scene, camera);
+    if (frame % 8 === 0) updateOcclusion();
+    updateLabels();
+    frame++;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
